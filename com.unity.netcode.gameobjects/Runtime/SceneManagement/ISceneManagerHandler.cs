@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
 namespace Unity.Netcode
@@ -10,16 +13,16 @@ namespace Unity.Netcode
     /// </summary>
     internal interface ISceneManagerHandler
     {
-        AsyncOperation LoadSceneAsync(string sceneName, LoadSceneMode loadSceneMode, SceneEventProgress sceneEventProgress);
+        AsyncOperationHandle<SceneInstance> LoadSceneAsync(AssetReference sceneReference, LoadSceneMode loadSceneMode, SceneEventProgress sceneEventProgress);
 
-        AsyncOperation UnloadSceneAsync(Scene scene, SceneEventProgress sceneEventProgress);
+        AsyncOperationHandle<SceneInstance> UnloadSceneAsync(SceneInstance sceneInstance, SceneEventProgress sceneEventProgress);
 
         void PopulateLoadedScenes(ref Dictionary<int, Scene> scenesLoaded, NetworkManager networkManager = null);
-        Scene GetSceneFromLoadedScenes(string sceneName, NetworkManager networkManager = null);
+        Scene GetSceneFromLoadedScenes(SceneInstance sceneInstance, NetworkManager networkManager = null);
 
-        bool DoesSceneHaveUnassignedEntry(string sceneName, NetworkManager networkManager = null);
+        bool DoesSceneHaveUnassignedEntry(Scene targetScene, NetworkManager networkManager = null);
 
-        void StopTrackingScene(int handle, string name, NetworkManager networkManager = null);
+        void StopTrackingScene(int handle, AssetReference sceneReference, NetworkManager networkManager = null);
 
         void StartTrackingScene(Scene scene, bool assigned, NetworkManager networkManager = null);
 
@@ -30,7 +33,5 @@ namespace Unity.Netcode
         void MoveObjectsFromSceneToDontDestroyOnLoad(ref NetworkManager networkManager, Scene scene);
 
         void SetClientSynchronizationMode(ref NetworkManager networkManager, LoadSceneMode mode);
-
-        bool ClientShouldPassThrough(string sceneName, bool isPrimaryScene, LoadSceneMode clientSynchronizationMode, NetworkManager networkManager);
     }
 }

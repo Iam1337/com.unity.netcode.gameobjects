@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
 
@@ -21,16 +24,16 @@ namespace Unity.Netcode
 
         internal Dictionary<string, Dictionary<int, SceneEntry>> SceneNameToSceneHandles = new Dictionary<string, Dictionary<int, SceneEntry>>();
 
-        public AsyncOperation LoadSceneAsync(string sceneName, LoadSceneMode loadSceneMode, SceneEventProgress sceneEventProgress)
+        public AsyncOperationHandle<SceneInstance> LoadSceneAsync(AssetReference sceneReference, LoadSceneMode loadSceneMode, SceneEventProgress sceneEventProgress)
         {
-            var operation = SceneManager.LoadSceneAsync(sceneName, loadSceneMode);
+            var operation = Addressables.LoadSceneAsync(sceneReference, loadSceneMode);
             sceneEventProgress.SetAsyncOperation(operation);
             return operation;
         }
 
-        public AsyncOperation UnloadSceneAsync(Scene scene, SceneEventProgress sceneEventProgress)
+        public AsyncOperationHandle<SceneInstance> UnloadSceneAsync(SceneInstance sceneInstance, SceneEventProgress sceneEventProgress)
         {
-            var operation = SceneManager.UnloadSceneAsync(scene);
+            var operation = Addressables.UnloadSceneAsync(sceneInstance);
             sceneEventProgress.SetAsyncOperation(operation);
             return operation;
         }
@@ -61,6 +64,11 @@ namespace Unity.Netcode
             }
         }
 
+        public void StopTrackingScene(int handle, AssetReference sceneReference, NetworkManager networkManager = null)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Starts tracking a specific scene
         /// </summary>
@@ -89,19 +97,21 @@ namespace Unity.Netcode
         /// <summary>
         /// Determines if there is an existing scene loaded that matches the scene name but has not been assigned
         /// </summary>
-        public bool DoesSceneHaveUnassignedEntry(string sceneName, NetworkManager networkManager)
+        public bool DoesSceneHaveUnassignedEntry(Scene targetScene, NetworkManager networkManager)
         {
-            var scenesWithSceneName = new List<Scene>();
+            var scenesWithSceneName = new List<Scene>() { targetScene };
+            var sceneName = targetScene.name;
 
+            // INFO: У нас теперь гарантированно только одна сцена.
             // Get all loaded scenes with the same name
-            for (int i = 0; i < SceneManager.sceneCount; i++)
-            {
-                var scene = SceneManager.GetSceneAt(i);
-                if (scene.name == sceneName)
-                {
-                    scenesWithSceneName.Add(scene);
-                }
-            }
+            // for (int i = 0; i < SceneManager.sceneCount; i++)
+            // {
+            //     var scene = SceneManager.GetSceneAt(i);
+            //     if (scene.name == sceneName)
+            //     {
+            //         scenesWithSceneName.Add(scene);
+            //     }
+            // }
 
             // If there are no scenes of this name loaded then we have no loaded scenes
             // to use
@@ -141,8 +151,9 @@ namespace Unity.Netcode
         /// This will find any scene entry that hasn't been used/assigned, set the entry to assigned, and
         /// return the associated scene. If none are found it returns an invalid scene.
         /// </summary>
-        public Scene GetSceneFromLoadedScenes(string sceneName, NetworkManager networkManager)
+        public Scene GetSceneFromLoadedScenes(SceneInstance sceneInstance, NetworkManager networkManager)
         {
+            var sceneName = sceneInstance.Scene.name;
             if (SceneNameToSceneHandles.ContainsKey(sceneName))
             {
                 foreach (var sceneHandleEntry in SceneNameToSceneHandles[sceneName])
@@ -250,33 +261,6 @@ namespace Unity.Netcode
         }
 
         /// <summary>
-        /// Handles determining if a client should attempt to load a scene during synchronization.
-        /// </summary>
-        /// <param name="sceneName">name of the scene to be loaded</param>
-        /// <param name="isPrimaryScene">when in client synchronization mode single, this determines if the scene is the primary active scene</param>
-        /// <param name="clientSynchronizationMode">the current client synchronization mode</param>
-        /// <param name="networkManager"><see cref="NetworkManager"/> instance</param>
-        /// <returns></returns>
-        public bool ClientShouldPassThrough(string sceneName, bool isPrimaryScene, LoadSceneMode clientSynchronizationMode, NetworkManager networkManager)
-        {
-            var shouldPassThrough = clientSynchronizationMode == LoadSceneMode.Single ? false : DoesSceneHaveUnassignedEntry(sceneName, networkManager);
-            var activeScene = SceneManager.GetActiveScene();
-
-            // If shouldPassThrough is not yet true and the scene to be loaded is the currently active scene
-            if (!shouldPassThrough && sceneName == activeScene.name)
-            {
-                // In additive mode we always pass through, but in LoadSceneMode.Single we only pass through if the currently active scene
-                // is the primary scene to be loaded
-                if (clientSynchronizationMode == LoadSceneMode.Additive || (isPrimaryScene && clientSynchronizationMode == LoadSceneMode.Single))
-                {
-                    // don't try to reload this scene and pass through to post load processing.
-                    shouldPassThrough = true;
-                }
-            }
-            return shouldPassThrough;
-        }
-
-        /// <summary>
         /// Handles migrating dynamically spawned NetworkObjects to the DDOL when a scene is unloaded
         /// </summary>
         /// <param name="networkManager"><see cref="NetworkManager"/>relative instance</param>
@@ -357,7 +341,8 @@ namespace Unity.Netcode
                     if (sceneManager.VerifySceneBeforeLoading != null)
                     {
                         // Determine if we should take this scene into consideration
-                        if (!sceneManager.VerifySceneBeforeLoading.Invoke(scene.buildIndex, scene.name, LoadSceneMode.Additive))
+                        var sceneReference = sceneManager.SceneReferenceFromScene(scene);
+                        if (!sceneManager.VerifySceneBeforeLoading.Invoke(sceneReference, LoadSceneMode.Additive))
                         {
                             continue;
                         }

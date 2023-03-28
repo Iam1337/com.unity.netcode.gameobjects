@@ -289,17 +289,17 @@ namespace Unity.Netcode.Editor
 
                     if (GUILayout.Button(new GUIContent("Start Host", "Starts a host instance" + buttonDisabledReasonSuffix)))
                     {
-                        m_NetworkManager.StartHost();
+                        m_NetworkManager.StartHost(null);
                     }
 
                     if (GUILayout.Button(new GUIContent("Start Server", "Starts a server instance" + buttonDisabledReasonSuffix)))
                     {
-                        m_NetworkManager.StartServer();
+                        m_NetworkManager.StartServer(null);
                     }
 
                     if (GUILayout.Button(new GUIContent("Start Client", "Starts a client instance" + buttonDisabledReasonSuffix)))
                     {
-                        m_NetworkManager.StartClient();
+                        m_NetworkManager.StartClient(null);
                     }
 
                     if (!EditorApplication.isPlaying)

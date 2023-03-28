@@ -2,6 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 using AsyncOperation = UnityEngine.AsyncOperation;
 
@@ -76,7 +79,7 @@ namespace Unity.Netcode
         /// </summary>
         internal OnCompletedDelegate OnComplete;
 
-        internal Action<uint> OnSceneEventCompleted;
+        internal Action<uint, AssetReference, SceneInstance> OnSceneEventCompleted;
 
         /// <summary>
         /// This will make sure that we only have timed out if we never completed
@@ -95,9 +98,10 @@ namespace Unity.Netcode
         internal uint SceneEventId;
 
         private Coroutine m_TimeOutCoroutine;
-        private AsyncOperation m_AsyncOperation;
+        private AsyncOperationHandle<SceneInstance>? m_AsyncOperation;
 
         private NetworkManager m_NetworkManager { get; }
+        private AssetReference m_SceneReference { get; }
 
         internal SceneEventProgressStatus Status { get; set; }
 
@@ -112,7 +116,7 @@ namespace Unity.Netcode
             {
                 // If we are the host, then add the host-client to the list
                 // of clients that completed if the AsyncOperation is done.
-                if (m_NetworkManager.IsHost && m_AsyncOperation.isDone)
+                if (m_NetworkManager.IsHost && m_AsyncOperation.Value.IsDone)
                 {
                     clients.Add(m_NetworkManager.LocalClientId);
                 }
@@ -131,7 +135,7 @@ namespace Unity.Netcode
                 // If we are the host, then add the host-client to the list
                 // of clients that did not complete if the AsyncOperation is
                 // not done.
-                if (m_NetworkManager.IsHost && !m_AsyncOperation.isDone)
+                if (m_NetworkManager.IsHost && !m_AsyncOperation.Value.IsDone)
                 {
                     clients.Add(m_NetworkManager.LocalClientId);
                 }
@@ -144,8 +148,10 @@ namespace Unity.Netcode
             return clients;
         }
 
-        internal SceneEventProgress(NetworkManager networkManager, SceneEventProgressStatus status = SceneEventProgressStatus.Started)
+        internal SceneEventProgress(NetworkManager networkManager, AssetReference sceneReference, SceneEventProgressStatus status = SceneEventProgressStatus.Started)
         {
+            m_SceneReference = sceneReference;
+
             if (status == SceneEventProgressStatus.Started)
             {
                 m_NetworkManager = networkManager;
@@ -244,28 +250,28 @@ namespace Unity.Netcode
             // Note: Integration tests process scene loading through a queue
             // and the AsyncOperation could not be assigned for several
             // network tick periods. Return false if that is the case.
-            return m_AsyncOperation == null ? false : m_AsyncOperation.isDone;
+            return m_AsyncOperation?.IsDone ?? false;
         }
 
         /// <summary>
         /// Sets the AsyncOperation for the scene load/unload event
         /// </summary>
-        internal void SetAsyncOperation(AsyncOperation asyncOperation)
+        internal void SetAsyncOperation(AsyncOperationHandle<SceneInstance> asyncOperation)
         {
             m_AsyncOperation = asyncOperation;
-            m_AsyncOperation.completed += new Action<AsyncOperation>(asyncOp2 =>
+            m_AsyncOperation.Value.Completed += operationHandle =>
             {
                 // Don't invoke the callback if the network session is disconnected
                 // during a SceneEventProgress
                 if (IsNetworkSessionActive())
                 {
-                    OnSceneEventCompleted?.Invoke(SceneEventId);
+                    OnSceneEventCompleted?.Invoke(SceneEventId, m_SceneReference, operationHandle.Result);
                 }
 
                 // Go ahead and try finishing even if the network session is terminated/terminating
                 // as we might need to stop the coroutine
                 TryFinishingSceneEventProgress();
-            });
+            };
         }
 
 

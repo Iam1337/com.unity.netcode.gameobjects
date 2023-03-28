@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace Unity.Netcode.Samples
 {
@@ -8,6 +10,8 @@ namespace Unity.Netcode.Samples
     /// </summary>
     public class BootstrapManager : MonoBehaviour
     {
+        public List<AssetReference> ScenesReferences;
+
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(10, 10, 300, 300));
@@ -17,17 +21,17 @@ namespace Unity.Netcode.Samples
             {
                 if (GUILayout.Button("Host"))
                 {
-                    networkManager.StartHost();
+                    networkManager.StartHost(ScenesReferences);
                 }
 
                 if (GUILayout.Button("Client"))
                 {
-                    networkManager.StartClient();
+                    networkManager.StartClient(ScenesReferences);
                 }
 
                 if (GUILayout.Button("Server"))
                 {
-                    networkManager.StartServer();
+                    networkManager.StartServer(ScenesReferences);
                 }
             }
             else

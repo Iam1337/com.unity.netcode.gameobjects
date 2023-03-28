@@ -1,7 +1,17 @@
 {
-	"name": "Bootstrap",
+    "name": "Bootstrap",
     "rootNamespace": "Unity.Netcode.Samples",
     "references": [
-        "Unity.Netcode.Runtime"
-    ]
+        "Unity.Netcode.Runtime",
+        "Unity.Addressables"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

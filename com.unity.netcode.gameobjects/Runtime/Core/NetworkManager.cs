@@ -13,6 +13,7 @@ using Unity.Multiplayer.Tools;
 using Unity.Profiling;
 using UnityEngine.SceneManagement;
 using System.Runtime.CompilerServices;
+using UnityEngine.AddressableAssets;
 using Debug = UnityEngine.Debug;
 
 namespace Unity.Netcode
@@ -712,7 +713,7 @@ namespace Unity.Netcode
             }
         }
 
-        internal void Initialize(bool server)
+        internal void Initialize(bool server, IEnumerable<AssetReference> scenesReferences)
         {
             // Don't allow the user to start a network session if the NetworkManager is
             // still parented under another GameObject
@@ -755,7 +756,7 @@ namespace Unity.Netcode
 
             CustomMessagingManager = new CustomMessagingManager(this);
 
-            SceneManager = new NetworkSceneManager(this);
+            SceneManager = new NetworkSceneManager(this, scenesReferences);
 
             BehaviourUpdater = new NetworkBehaviourUpdater();
 
@@ -844,7 +845,7 @@ namespace Unity.Netcode
         /// Starts a server
         /// </summary>
         /// <returns>(<see cref="true"/>/<see cref="false"/>) returns true if <see cref="NetworkManager"/> started in server mode successfully.</returns>
-        public bool StartServer()
+        public bool StartServer(IEnumerable<AssetReference> scenesReferences)
         {
             if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
             {
@@ -856,7 +857,7 @@ namespace Unity.Netcode
                 return false;
             }
 
-            Initialize(true);
+            Initialize(true, scenesReferences);
             IsServer = true;
             IsClient = false;
             IsListening = true;
@@ -899,7 +900,7 @@ namespace Unity.Netcode
         /// Starts a client
         /// </summary>
         /// <returns>(<see cref="true"/>/<see cref="false"/>) returns true if <see cref="NetworkManager"/> started in client mode successfully.</returns>
-        public bool StartClient()
+        public bool StartClient(IEnumerable<AssetReference> scenesReferences)
         {
             if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
             {
@@ -911,7 +912,7 @@ namespace Unity.Netcode
                 return false;
             }
 
-            Initialize(false);
+            Initialize(false, scenesReferences);
             MessagingSystem.ClientConnected(ServerClientId);
 
             if (!NetworkConfig.NetworkTransport.StartClient())
@@ -934,7 +935,7 @@ namespace Unity.Netcode
         /// Starts a Host
         /// </summary>
         /// <returns>(<see cref="true"/>/<see cref="false"/>) returns true if <see cref="NetworkManager"/> started in host mode successfully.</returns>
-        public bool StartHost()
+        public bool StartHost(IEnumerable<AssetReference> scenesReferences)
         {
             if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
             {
@@ -946,7 +947,7 @@ namespace Unity.Netcode
                 return false;
             }
 
-            Initialize(true);
+            Initialize(true, scenesReferences);
 
             IsServer = true;
             IsClient = true;
